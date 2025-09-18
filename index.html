@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sound Meter</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background:#1a188a; color:white; margin:0; padding:20px; }
+    h1 { margin:10px; }
+    .meter-bar {
+      width:80%; height:30px; margin:20px auto; border:3px solid #ccc; border-radius:5px;
+      background: linear-gradient(to right, green, yellow, orange, red);
+      position:relative;
+    }
+    .pointer {
+      width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent;
+      border-top:25px solid cyan; position:absolute; bottom:-25px;
+      left:50%; transform:translateX(-50%);
+    }
+    .circle {
+      width:250px; height:250px; margin:20px auto; border-radius:50%;
+      border:10px solid cyan; display:flex; align-items:center; justify-content:center;
+      background:black; color:white; font-size:22px; flex-direction:column;
+    }
+    .warning { color:orange; font-size:18px; margin-top:10px; }
+    .btn {
+      display:block; width:80%; margin:15px auto; padding:15px; font-size:18px; border:none; border-radius:5px;
+      cursor:pointer;
+    }
+    .blue { background:#3ba9ff; color:white; }
+    .red { background:#ff4444; color:white; }
+    .green { background:#00a878; color:white; }
+    .page { display:none; }
+    .active { display:block; }
+    label { display:block; margin:10px; }
+    input, select { padding:5px; font-size:16px; margin-top:5px; }
+  </style>
+</head>
+<body>
+
+  <!-- Home -->
+  <div id="home" class="page active">
+    <h1>Safety meter</h1>
+    <div class="meter-bar"><div id="pointer" class="pointer"></div></div>
+
+    <div class="circle">
+      <div id="dbValue">-- dB</div>
+      <div id="warning" class="warning"></div>
+    </div>
+
+    <button class="btn blue" onclick="showPage('personal')">1. Input/edit personal information</button>
+    <button class="btn red" onclick="showPage('analysis')">2. Show record analysis</button>
+    <button class="btn green" onclick="showPage('recovery')">3. Recovery mode</button>
+  </div>
+
+  <!-- Page 1: Personal Information -->
+  <div id="personal" class="page">
+    <h2>Input / Edit Personal Information</h2>
+
+    <label>Name:
+      <input id="name" type="text">
+    </label>
+
+    <label>Age:
+      <input id="age" type="number" min="1" max="120">
+    </label>
+
+    <label>Sex:
+      <select id="sex">
+        <option value="">-- Select --</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Other">Other</option>
+      </select>
+    </label>
+
+    <label>Medical History:
+      <select id="history">
+        <option value="">-- Select --</option>
+        <option value="None">None</option>
+        <option value="Hearing Loss">Hearing Loss</option>
+        <option value="Ear Disease">Ear Disease</option>
+        <option value="Other">Other</option>
+      </select>
+    </label>
+
+    <button onclick="savePersonal()">Save</button>
+    <button onclick="showPage('home')">Back</button>
+    <p id="saveMsg" style="color:lightgreen"></p>
+  </div>
+
+  <!-- Page 2: Record Analysis -->
+  <div id="analysis" class="page">
+    <h2>Show Record Analysis</h2>
+    <p>(กราฟ realtime จะใส่เพิ่มในภายหลัง)</p>
+    <button onclick="showPage('home')">Back</button>
+  </div>
+
+  <!-- Page 3: Recovery Mode -->
+  <div id="recovery" class="page">
+    <h2>Recovery Mode</h2>
+    <p id="recoveryStatus">Keep quiet environment to recover…</p>
+    <button onclick="showPage('home')">Back</button>
+  </div>
+
+<script>
+  // Page switch
+  function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+  }
+
+  // Personal info save
+  function savePersonal(){
+    const personalData = {
+      name: document.getElementById("name").value,
+      age: document.getElementById("age").value,
+      sex: document.getElementById("sex").value,
+      history: document.getElementById("history").value
+    };
+    localStorage.setItem("personalInfo", JSON.stringify(personalData));
+    document.getElementById("saveMsg").innerText = "✅ Saved!";
+  }
+
+  // Sound meter
+  let audioContext, analyser, mic, javascriptNode;
+  function startMeter(){
+    navigator.mediaDevices.getUserMedia({audio:true})
+      .then(stream=>{
+        audioContext = new (window.AudioContext||window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        mic = audioContext.createMediaStreamSource(stream);
+        javascriptNode = audioContext.createScriptProcessor(2048,1,1);
+
+        mic.connect(analyser);
+        analyser.connect(javascriptNode);
+        javascriptNode.connect(audioContext.destination);
+
+        javascriptNode.onaudioprocess = function(){
+          let buffer = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(buffer);
+          let sum=0;
+          for(let i=0;i<buffer.length;i++){ sum+=buffer[i]*buffer[i]; }
+          let rms=Math.sqrt(sum/buffer.length);
+          let db=20*Math.log10(rms);
+          if(db===-Infinity||isNaN(db)) return;
+
+          // Show dB
+          document.getElementById("dbValue").innerText = db.toFixed(1)+" dB";
+
+          // Pointer move (map dB range -60..0 to 0..100%)
+          let percent = Math.min(100, Math.max(0, (db+60)/60*100));
+          document.getElementById("pointer").style.left = percent+"%";
+
+          // Warning
+          if(db > -20){
+            document.getElementById("warning").innerText="⚠️ Warning: Too Loud!";
+          } else {
+            document.getElementById("warning").innerText="";
+          }
+
+          // Recovery page update
+          if(db < -30){
+            document.getElementById("recoveryStatus").innerText="✅ In Recovery (Quiet)";
+          } else {
+            document.getElementById("recoveryStatus").innerText="⚠️ Too loud, wait…";
+          }
+        };
+      })
+      .catch(err=>alert("Mic error: "+err));
+  }
+
+  // Start mic immediately when page loads
+  window.onload = ()=> startMeter();
+</script>
+</body>
+</html>
