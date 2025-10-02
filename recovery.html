@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>โหมดพักฟื้น</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #00a878;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      margin: 10px 0;
+      background: #666;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .circle {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      border: 10px solid cyan;
+      margin: 30px auto;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    .circle h2 {
+      margin: 0;
+      color: red;
+    }
+    .circle span {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .box {
+      background: #666;
+      padding: 15px;
+      margin: 15px auto;
+      width: 80%;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .big-box {
+      background: #999;
+      padding: 20px;
+      margin: 15px auto;
+      width: 85%;
+      border-radius: 8px;
+      color: black;
+      text-align: center;
+    }
+    .alert-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 15px 20px;
+      background: red;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>โหมดพักฟื้น</h1>
+
+  <div class="circle">
+    <h2>ตั้งให้เตือนหากระดับเสียงเกิน xx</h2>
+    <span>Volume display<br>(Number, decibel)</span>
+    <p style="color: orange; font-weight: bold;">⚠ คำเตือน!</p>
+  </div>
+
+  <div class="box">
+    คุณต้องพักในสภาพแวดล้อมที่ dB ไม่เกิน XX <br>
+    จึงจะกลับสู่สภาวะปกติ
+  </div>
+
+  <div class="box">
+    เป็นเวลา : XX.XX.XX วัน/ชม./นาที
+  </div>
+
+  <div class="big-box">
+    สภาพหูคุณตอนนี้ : ดี / หูอื้อ / มีความเสี่ยง <br>
+    คำแนะนำ : พักอยู่ในสภาพแวดล้อมตาม timer / ควรพบแพทย์
+  </div>
+
+  <button class="alert-btn">ฉันมีปัญหาเพิ่มเติม</button>
+
+</body>
+</html>
