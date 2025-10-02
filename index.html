@@ -50,14 +50,16 @@
   </style>
 </head>
 <body>
-  <!-- Min Max Avg -->
-  <div class="stats">
-    <div>Min <span id="minDb">--</span> dB</div>
-    <div>Max <span id="maxDb">--</span> dB</div>
-    <div>Avg <span id="avgDb">--</span> dB</div>
-  </div>
 
-  <h1>Safety meter</h1>
+  <!-- Min Max Avg -->
+<div class="stats">
+  <div>ค่าน้อยสุด <span id="minDb">--</span> dB</div>
+  <div>ค่ามากสุด <span id="maxDb">--</span> dB</div>
+  <div>ค่าเฉลี่ย <span id="avgDb">--</span> dB</div>
+</div>
+
+<h1>ระดับความปลอดภัย</h1>
+
 
   <div class="meter-bar" id="meter">
     <div id="movingBar" class="moving-bar"></div>
@@ -71,9 +73,11 @@
   </div>
 
   <!-- ปุ่มอื่นๆ -->
-  <button class="btn blue">1. Input/edit personal information</button>
-  <button class="btn red">2. Show record analysis</button>
-  <button class="btn green">3. Recovery mode</button>
+  <button class="btn blue">1. ใส่/แก้ข้อมูลส่วนบุคคล</button>
+  <button class="btn red" onclick="window.location.href='report.html'">
+  2. แสดงข้อมูลที่บันทึก
+</button>
+  <button class="btn green">3. โหมดพักฟื้น</button>
 
   <!-- popup เตือน -->
   <div id="popup">⚠️ เสียงดังเกินไป!</div>
