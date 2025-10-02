@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ทดสอบส่งค่า dB</title>
+</head>
+<body style="font-family: Arial; text-align: center; padding: 40px;">
+  <h2>ทดสอบส่งค่า dB ไป Google Sheet</h2>
+
+  <label>Min dB: <input type="number" id="min" value="30"></label><br><br>
+  <label>Max dB: <input type="number" id="max" value="85"></label><br><br>
+  <label>Avg dB: <input type="number" id="avg" value="60"></label><br><br>
+
+  <button onclick="sendData()">ส่งข้อมูล</button>
+
+  <p id="status"></p>
+
+  <script>
+    // ใส่ URL Web App ของคุณตรงนี้
+   const url = "https://script.google.com/macros/s/AKfycbwmTIOVYZgjfRAOP72VwLBKo09Fm45QEaY5-QgVgZ6EXdrt2X1KxXHo5mEe1Ly_h5E/exec";
+
+fetch(url, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    min: 25.3,
+    max: 75.6,
+    avg: 50.2
+  })
+})
+.then(res => res.json())
+.then(data => console.log("✅ Success:", data))
+.catch(err => console.error("❌ Error:", err));
+
+
+      fetch(SHEET_API_URL, {
+        method: "POST",
+        body: JSON.stringify({ min, max, avg }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("status").innerText = "✅ ส่งข้อมูลสำเร็จ: " + JSON.stringify(data);
+      })
+      .catch(err => {
+        document.getElementById("status").innerText = "❌ Error: " + err;
+      });
+    }
+  </script>
+</body>
+</html>
