@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ข้อมูลที่บันทึก</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #ff4444;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      margin: 10px 0;
+      background: #666;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .graph {
+      margin: 20px auto;
+      width: 80%;
+      background: black;
+      border: 2px solid white;
+      padding: 10px;
+    }
+    .stats-buttons {
+      margin: 15px 0;
+    }
+    .stats-buttons button {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .report-box {
+      background: #333;
+      padding: 15px;
+      margin: 20px auto;
+      width: 80%;
+      border-radius: 8px;
+      text-align: left;
+      line-height: 1.6;
+    }
+    .download-btn {
+      display: block;
+      margin: 15px auto;
+      padding: 12px 20px;
+      background: orange;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+    }
+    .pdf-btn {
+      display: inline-block;
+      background: darkred;
+      padding: 8px 12px;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>แสดงข้อมูลที่บันทึก</h1>
+
+  <h2>โชว์กราฟระดับเสียง (ระยะเวลา 4 ชม)</h2>
+  <div class="graph">
+    <!-- ใส่กราฟจริงทีหลัง (canvas/ภาพ) -->
+    <img src="https://dummyimage.com/600x250/000/fff.png&text=Graph" alt="กราฟเสียง">
+  </div>
+
+  <div class="stats-buttons">
+    <button>ค่าน้อยสุด</button>
+    <button>ค่ามากสุด</button>
+    <button>ค่าเฉลี่ย</button>
+  </div>
+
+  <h2>แสดงข้อมูลที่บันทึก (รีเซ็ทรายวัน)</h2>
+  <div class="report-box">
+    ระดับเสียงโดยประมาณวันนี้ : -- dB<br>
+    เสียงที่สูงสุดที่พบได้คือ : -- dB<br>
+    ระยะเวลาความยาวของระดับเสียง : -- นาที<br>
+    ระดับความเสี่ยง : -- <br>
+    เวลาที่ต้องใช้ในโหมดพักฟื้น : -- <br>
+    <br>
+    <span class="pdf-btn">📄 Pdf รายอาทิตย์</span>
+  </div>
+
+  <button class="download-btn">⬇ Download</button>
+
+</body>
+</html>
