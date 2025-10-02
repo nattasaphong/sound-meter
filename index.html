@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Safety meter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background:#1a188a;
+      color:white;
+      margin:0;
+      padding:20px;
+    }
+    h1 { margin:10px; }
+    .stats { display: flex; justify-content: space-around; font-size: 20px; margin-top: 10px; }
+    .stats div { text-align: center; }
+    .stats span { display: block; font-size: 22px; font-weight: bold; margin-top: 5px; }
+    .meter-bar { width:90%; height:40px; margin:20px auto; border:3px solid #ccc; border-radius:5px;
+                 background: linear-gradient(to right, limegreen, yellow, orange, orangered, red); position:relative; }
+    .pointer { width:0; height:0; border-left:12px solid transparent; border-right:12px solid transparent;
+               border-top:20px solid cyan; position:absolute; top:40px; left:0; transform:translateX(-50%); }
+    .moving-bar { position:absolute; top:0; bottom:0; width:4px; background:black; left:0; transform:translateX(-50%); }
+    .circle { width:250px; height:250px; margin:40px auto; border-radius:50%; border:10px solid cyan;
+              display:flex; align-items:center; justify-content:center; background:black; flex-direction:column; }
+    #dbValue { font-size:32px; font-weight:bold; }
+    .warning { font-size:18px; margin-top:10px; color:orange; }
+    .btn { display:block; width:80%; margin:15px auto; padding:15px; font-size:18px; border:none;
+           border-radius:5px; cursor:pointer; font-weight: bold; }
+    .blue { background:#3ba9ff; color:white; }
+    .red { background:#ff4444; color:white; }
+    .green { background:#00a878; color:white; }
+
+    /* popup เตือน */
+    #popup {
+      display:none;
+      position:fixed;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:red;
+      color:white;
+      padding:15px 25px;
+      border-radius:8px;
+      font-size:18px;
+      font-weight:bold;
+      z-index:9999;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Min Max Avg -->
+<div class="stats">
+  <div>ค่าน้อยสุด <span id="minDb">--</span> dB</div>
+  <div>ค่ามากสุด <span id="maxDb">--</span> dB</div>
+  <div>ค่าเฉลี่ย <span id="avgDb">--</span> dB</div>
+</div>
+
+<h1>ระดับความปลอดภัย</h1>
+
+
+  <div class="meter-bar" id="meter">
+    <div id="movingBar" class="moving-bar"></div>
+    <div id="pointer" class="pointer"></div>
+  </div>
+
+  <!-- วงกลม -->
+  <div class="circle">
+    <div id="dbValue">-- dB</div>
+    <div id="warning" class="warning"></div>
+  </div>
+
+  <!-- ปุ่มอื่นๆ -->
+  <button class="btn blue">1. ใส่/แก้ข้อมูลส่วนบุคคล</button>
+  <button class="btn red" onclick="window.location.href='report.html'">
+  2. แสดงข้อมูลที่บันทึก
+</button>
+  <button class="btn green">3. โหมดพักฟื้น</button>
+
+  <!-- popup เตือน -->
+  <div id="popup">⚠️ เสียงดังเกินไป!</div>
+
+  <script>
+    let audioContext, analyser, mic, javascriptNode;
+    let minDb = Infinity, maxDb = -Infinity, sumDb = 0, countDb = 0;
+    let lastSaveTime = Date.now();
+    let lastNotifyTime = 0;
+
+    // ขอสิทธิ์แจ้งเตือน
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    function resetStats(){
+      minDb = Infinity; maxDb = -Infinity; sumDb = 0; countDb = 0;
+    }
+
+    function updateDisplay(){
+      document.getElementById("minDb").innerText = (minDb === Infinity ? "--" : minDb.toFixed(1));
+      document.getElementById("maxDb").innerText = (maxDb === -Infinity ? "--" : maxDb.toFixed(1));
+      document.getElementById("avgDb").innerText = (countDb === 0 ? "--" : (sumDb/countDb).toFixed(1));
+    }
+
+    function saveStats(db){
+      if(db < minDb) minDb = db;
+      if(db > maxDb) maxDb = db;
+      if(Date.now() - lastSaveTime > 1000){
+        sumDb += db; countDb++; lastSaveTime = Date.now();
+      }
+      updateDisplay();
+    }
+
+    // ฟังก์ชันส่งข้อความแจ้งเตือน
+    function alertLoudNoise(db){
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("⚠️ เสียงดังเกินไป!", {
+          body: "ตอนนี้วัดได้ " + db.toFixed(1) + " dB",
+          icon: "https://cdn-icons-png.flaticon.com/512/565/565547.png"
+        });
+      } else {
+        // แสดง popup แทน
+        let popup = document.getElementById("popup");
+        popup.innerText = "⚠️ เสียงดังเกินไป! (" + db.toFixed(1) + " dB)";
+        popup.style.display = "block";
+        setTimeout(()=> popup.style.display="none", 3000);
+      }
+    }
+
+    function startMeter(){
+      navigator.mediaDevices.getUserMedia({audio:true})
+      .then(stream=>{
+        audioContext = new (window.AudioContext||window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        mic = audioContext.createMediaStreamSource(stream);
+        javascriptNode = audioContext.createScriptProcessor(2048,1,1);
+
+        mic.connect(analyser);
+        analyser.connect(javascriptNode);
+        javascriptNode.connect(audioContext.destination);
+
+        javascriptNode.onaudioprocess = function(){
+          let buffer = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(buffer);
+
+          let sum=0;
+          for(let i=0;i<buffer.length;i++){ sum+=buffer[i]*buffer[i]; }
+          let rms=Math.sqrt(sum/buffer.length);
+          let db=20*Math.log10(rms)+100;
+
+          if(isNaN(db)) return;
+
+          document.getElementById("dbValue").innerText = db.toFixed(1)+" dB";
+          let pos = Math.min(120, Math.max(0, db));
+          let leftPercent = (pos/120)*100;
+          document.getElementById("pointer").style.left = leftPercent+"%";
+          document.getElementById("movingBar").style.left = leftPercent+"%";
+
+          saveStats(db);
+
+          if(db > 85){
+            document.getElementById("warning").innerText="⚠️ ระวังเสียงดังเกินไป!";
+          } else {
+            document.getElementById("warning").innerText="";
+          }
+
+          // 🚨 ถ้าเสียงเกิน 90 dB ให้แจ้งเตือน (ทุกๆ 5 วินาที)
+          if(db > 90){
+            let now = Date.now();
+            if(now - lastNotifyTime > 5000){
+              alertLoudNoise(db);
+              lastNotifyTime = now;
+            }
+          }
+        };
+      })
+      .catch(err=>alert("Mic error: "+err));
+    }
+
+    // reset ทุก 1 ชม.
+    setInterval(resetStats, 3600000);
+
+    // ✅ เริ่มทำงานทันทีเมื่อโหลดหน้าเว็บ
+    window.onload = ()=> startMeter();
+  </script>
+</body>
+</html>
