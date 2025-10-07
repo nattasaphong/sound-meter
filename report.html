@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>รายงานเสียง (Report)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background:#1a188a; color:white; margin:0; padding:20px; }
+    h1 { margin: 20px 0; }
+    .stats { display:flex; justify-content:space-around; margin:20px 0; font-size:18px; }
+    .stats div { background:#222; padding:10px 20px; border-radius:8px; }
+    canvas { background:#fff; border-radius:10px; padding:10px; margin-top:20px; }
+  </style>
+</head>
+<body>
+  <h1>รายงานเสียง (Real-time)</h1>
+
+  <div class="stats">
+    <div>ค่าน้อยสุด: <span id="minVal">--</span> dB</div>
+    <div>ค่ามากสุด: <span id="maxVal">--</span> dB</div>
+    <div>ค่าเฉลี่ย: <span id="avgVal">--</span> dB</div>
+  </div>
+
+  <canvas id="dbChart" width="800" height="400"></canvas>
+
+  <script>
+    let chart;
+    let channel = new BroadcastChannel("dbChannel");
+
+    channel.onmessage = (e) => {
+      let data = e.data;
+
+      // ✅ อัปเดตตัวเลข
+      document.getElementById("minVal").innerText = data.min;
+      document.getElementById("maxVal").innerText = data.max;
+      document.getElementById("avgVal").innerText = data.avg;
+
+      // ✅ อัปเดตกาฟ
+      if(!chart){
+        let ctx = document.getElementById("dbChart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: [new Date(data.time).toLocaleTimeString()],
+            datasets: [{
+              label: "ระดับเสียง (dB)",
+              data: [parseFloat(data.db)],
+              borderColor: "red",
+              backgroundColor: "rgba(255,0,0,0.2)",
+              fill: true,
+              tension: 0.2
+            }]
+          },
+          options: { animation:false, scales:{ y:{ beginAtZero:true } } }
+        });
+      } else {
+        chart.data.labels.push(new Date(data.time).toLocaleTimeString());
+        chart.data.datasets[0].data.push(parseFloat(data.db));
+
+        if(chart.data.labels.length > 200){
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+      }
+    };
+  </script>
+</body>
+</html>
