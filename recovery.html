@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>โหมดพักฟื้น</title>
+  <style>
+    body {
+      font-family: "Prompt", sans-serif;
+      background: #00a878;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      background: #666;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 28px;
+      margin: 10px 0;
+    }
+
+    .circle {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      border: 8px solid cyan;
+      margin: 30px auto;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .circle h2 {
+      margin: 0;
+      color: red;
+      font-size: 18px;
+    }
+
+    .circle span {
+      font-size: 26px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .warning {
+      color: orange;
+      font-weight: bold;
+      font-size: 20px;
+      margin-top: 10px;
+    }
+
+    .box {
+      background: #666;
+      padding: 15px;
+      margin: 15px auto;
+      width: 80%;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    .big-box {
+      background: #999;
+      padding: 20px;
+      margin: 15px auto;
+      width: 85%;
+      border-radius: 8px;
+      color: black;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    .alert-btn {
+      display: inline-block;
+      margin: 20px auto;
+      padding: 15px 25px;
+      background: red;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .step-badge {
+      width: 40px;
+      height: 40px;
+      background: orange;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: black;
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      font-size: 20px;
+    }
+
+    .container {
+      position: relative;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="step-badge">3</div>
+    <h1>โหมดพักฟื้น</h1>
+
+    <div class="circle">
+      <span id="dbValue">-- dB</span>
+      <div class="warning" id="warningText">⚠ คำเตือน!</div>
+    </div>
+
+    <div class="box" id="limitBox">
+      คุณต้องพักในสภาพแวดล้อมที่ dB ไม่เกิน 85<br>
+      จึงจะกลับสู่สภาวะปกติ
+    </div>
+
+    <div class="box" id="timeBox">
+      เป็นเวลา : 00:05:00 วัน/ชม./นาที
+    </div>
+
+    <div class="big-box" id="statusBox">
+      สภาพหูคุณตอนนี้ : ดี / หูอื้อ / มีความเสี่ยง <br>
+      คำแนะนำ : พักอยู่ในสภาพแวดล้อมตาม timer / ควรพบแพทย์
+    </div>
+
+    <button class="alert-btn">ฉันมีปัญหาเพิ่มเติม</button>
+  </div>
+
+  <script>
+    const channel = new BroadcastChannel("dbChannel");
+    let remainingTime = 5 * 60; // 5 นาที (หน่วยวินาที)
+    let timer = null;
+    const safeLimit = 85;
+
+    function updateTimerDisplay() {
+      const hrs = Math.floor(remainingTime / 3600);
+      const mins = Math.floor((remainingTime % 3600) / 60);
+      const secs = remainingTime % 60;
+      document.getElementById("timeBox").innerText =
+        `เป็นเวลา : ${hrs.toString().padStart(2,"0")}:${mins.toString().padStart(2,"0")}:${secs.toString().padStart(2,"0")} วัน/ชม./นาที`;
+    }
+
+    function startRecoveryTimer() {
+      if (!timer) {
+        timer = setInterval(() => {
+          if (remainingTime > 0) {
+            remainingTime--;
+            updateTimerDisplay();
+          } else {
+            clearInterval(timer);
+            timer = null;
+            document.getElementById("statusBox").innerHTML = `
+              ✅ <b style="color:green;">ฟื้นตัวแล้ว</b><br>
+              หูของคุณกลับสู่สภาวะปกติ
+            `;
+          }
+        }, 1000);
+      }
+    }
+
+    function stopRecoveryTimer() {
+      clearInterval(timer);
+      timer = null;
+    }
+
+    channel.onmessage = (event) => {
+      const data = event.data;
+      if (!data || !data.db) return;
+
+      const db = parseFloat(data.db);
+      document.getElementById("dbValue").innerText = db.toFixed(1) + " dB";
+
+      const warningText = document.getElementById("warningText");
+      const statusBox = document.getElementById("statusBox");
+
+      if (db > safeLimit) {
+        warningText.innerHTML = "⚠ เสียงดังเกินไป!";
+        warningText.style.color = "orange";
+        stopRecoveryTimer();
+        statusBox.innerHTML = `
+          สภาพหูคุณตอนนี้ : <b style="color:red;">มีความเสี่ยง</b><br>
+          คำแนะนำ : หลีกเลี่ยงเสียงดัง และพักในที่เงียบ
+        `;
+      } else {
+        warningText.innerHTML = "✅ ระดับเสียงปลอดภัย";
+        warningText.style.color = "limegreen";
+        startRecoveryTimer();
+        statusBox.innerHTML = `
+          สภาพหูคุณตอนนี้ : <b style="color:green;">กำลังฟื้นตัว</b><br>
+          คำแนะนำ : อยู่ในที่เงียบจนกว่าจะครบเวลา
+        `;
+      }
+    };
+
+    // เริ่มต้นแสดงเวลา
+    updateTimerDisplay();
+  </script>
+</body>
+</html>
