@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>Advanced Sound Level Meter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{margin:0;font-family:Arial;background:#0b0b0b;color:#fff}
+header{padding:15px;text-align:center;font-size:22px;font-weight:bold;background:#000}
+.main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}
+@media(max-width:900px){.main{grid-template-columns:1fr}}
+
+.circle{width:280px;height:280px;border-radius:50%;border:12px solid #21d9ff;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:auto}
+.circle h2{margin:0;color:#ff6a00}
+.circle .db{font-size:46px;font-weight:bold}
+.circle .range{font-size:18px;margin-top:5px}
+
+.panel{background:#000;border-radius:16px;padding:20px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;text-align:center}
+.stat{background:#111;border-radius:12px;padding:10px}
+.stat span{display:block;font-size:14px;color:#aaa}
+.stat b{font-size:20px}
+
+select{background:#111;color:#fff;border:none;padding:8px;border-radius:8px}
+
+canvas{width:100%;height:200px;background:#000;border-radius:12px}
+
+.bars{margin-top:10px}
+.bar{height:16px;border-radius:10px;margin:6px 0}
+.g1{background:#4cff00}.g2{background:#9aff00}.g3{background:#eaff00}.g4{background:#c99600}
+.g5{background:#ff7a00}.g6{background:#ff2a00}.g7{background:#ff00a8}.g8{background:#d400ff}.g9{background:#8a00ff}
+</style>
+</head>
+<body>
+<header>Sound Level Meter (เหมือนต้นแบบ)</header>
+
+<div class="main">
+
+<div class="panel">
+  <div class="circle">
+    <h2>คำเตือน</h2>
+    <div class="db"><span id="db">0</span> dB</div>
+    <div class="range" id="rangeText">คุณอยู่ในช่วง : -</div>
+    <div class="range" id="safeText">รับได้ : -</div>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Statistics</h3>
+  <div class="stats">
+    <div class="stat"><span>MIN</span><b id="min">0</b></div>
+    <div class="stat"><span>AVG</span><b id="avg">0</b></div>
+    <div class="stat"><span>MAX</span><b id="max">0</b></div>
+    <div class="stat"><span>PEAK</span><b id="peak">0</b></div>
+  </div>
+
+  <h3 style="margin-top:15px">Weighting</h3>
+  <select id="weight">
+  <option value="a">dBA (Mobile)</option>
+  <option value="z">dBZ</option>
+</select>
+<br><br>
+<label>Calibration (dB)</label>
+<input type="range" id="cal" min="-20" max="20" value="0">
+<span id="calVal">0</span> dB
+
+  <h3 style="margin-top:15px">Spectrum</h3>
+  <canvas id="spectrum"></canvas>
+
+  <h3 style="margin-top:15px">Sound History</h3>
+  <canvas id="history"></canvas>
+</div>
+
+</div>
+
+<div class="panel" style="margin:20px">
+<h3>ระดับเสียง</h3>
+<div class="bars">
+<div class="bar g1"></div><div class="bar g2"></div><div class="bar g3"></div><div class="bar g4"></div>
+<div class="bar g5"></div><div class="bar g6"></div><div class="bar g7"></div><div class="bar g8"></div><div class="bar g9"></div>
+</div>
+</div>
+
+<script>
+let audioCtx, analyser, timeData, freqData;
+let calibration = 0;
+let lastDb = 0;
+let min=999, max=0, sum=0, count=0, peak=0;
+const hist=[], maxHist=200;
+
+navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})({audio:true}).then(stream=>{
+  audioCtx=new AudioContext();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=2048;
+  timeData=new Uint8Array(analyser.fftSize);
+  freqData=new Uint8Array(analyser.frequencyBinCount);
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  draw();
+});
+
+function calcDB(){
+  analyser.getByteTimeDomainData(timeData);
+  let sumsq=0;
+  for(let i=0;i<timeData.length;i++){
+    let v=(timeData[i]-128)/128;
+    sumsq+=v*v;
+  }
+  let rms=Math.sqrt(sumsq/timeData.length);
+  let raw = 20*Math.log10(rms)+100;
+  let smooth = raw*0.7 + lastDb*0.3;
+  lastDb = smooth;
+  return Math.max(0,Math.min(120,Math.round(smooth + calibration)));
+}
+  let rms=Math.sqrt(sumsq/timeData.length);
+  return Math.max(0,Math.min(120,Math.round(20*Math.log10(rms)+100)));
+}
+
+function draw(){
+  const db=calcDB();
+  document.getElementById('db').innerText=db;
+
+  min=Math.min(min,db); max=Math.max(max,db); peak=Math.max(peak,db);
+  sum+=db; count++;
+
+  document.getElementById('min').innerText=min;
+  document.getElementById('max').innerText=max;
+  document.getElementById('avg').innerText=Math.round(sum/count);
+  document.getElementById('peak').innerText=peak;
+
+  let text=''; let safe=''; let color='#fff';
+  if(db<=81){text='ช่วงที่ 1';safe='ปลอดภัย';color='#4cff00'}
+  else if(db<=84){text='ช่วงที่ 2';safe='ค่อนข้างปลอดภัย';color='#9aff00'}
+  else if(db<=87){text='ช่วงที่ 3';safe='เริ่มดัง';color='#eaff00'}
+  else if(db<=90){text='ช่วงที่ 4';safe='ควรระวัง';color='#c99600'}
+  else if(db<=93){text='ช่วงที่ 5';safe='อันตราย';color='#ff7a00'}
+  else if(db<=96){text='ช่วงที่ 6';safe='อันตรายสูง';color='#ff2a00'}
+  else if(db<=99){text='ช่วงที่ 7';safe='อันตรายมาก';color='#ff00a8'}
+  else if(db<=102){text='ช่วงที่ 8';safe='เสี่ยงสูง';color='#d400ff'}
+  else{text='ช่วงที่ 9';safe='อันตรายรุนแรง';color='#8a00ff'}
+
+  const r=document.getElementById('rangeText');
+  r.innerText='คุณอยู่ในช่วง : '+text; r.style.color=color;
+  document.getElementById('safeText').innerText='รับได้ : '+safe;
+
+  // spectrum
+  analyser.getByteFrequencyData(freqData);
+  const c1=document.getElementById('spectrum').getContext('2d');
+  c1.clearRect(0,0,600,200);
+  freqData.forEach((v,i)=>{
+    c1.fillStyle='rgb('+v+',0,255)';
+    c1.fillRect(i,200-v/2,1,v/2);
+  });
+
+  // history
+  hist.push(db); if(hist.length>maxHist) hist.shift();
+  const c2=document.getElementById('history').getContext('2d');
+  c2.clearRect(0,0,600,200);
+  c2.beginPath();
+  hist.forEach((v,i)=>{
+    let x=i*(600/maxHist); let y=200-v*1.5;
+    if(i===0)c2.moveTo(x,y); else c2.lineTo(x,y);
+  });
+  c2.strokeStyle='#21d9ff'; c2.stroke();
+
+  requestAnimationFrame(draw);
+}
+
+document.getElementById('cal').oninput=e=>{
+ calibration=Number(e.target.value);
+ document.getElementById('calVal').innerText=calibration;
+};
+}
+</script>
+</body>
+</html>
