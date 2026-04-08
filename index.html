@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard เกษตรกร</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  body { font-family: sans-serif; padding:20px; }
+  canvas { max-width:100%; margin-top:20px; }
+</style>
+</head>
+
+<body>
+
+<h2>📊 Dashboard</h2>
+
+<select id="month"></select>
+<select id="farmer"></select>
+
+<p>💸 ค่าใช้จ่าย: <span id="cost">0</span></p>
+<p>💰 รายรับ: <span id="pay">0</span></p>
+<p>📈 กำไร: <span id="profit">0</span></p>
+
+<canvas id="bar"></canvas>
+<canvas id="profitChart"></canvas>
+<canvas id="pie"></canvas>
+
+<table border="1" width="100%">
+<thead>
+<tr>
+<th>วันเวลา</th>
+<th>ชื่อเกษตรกร</th>
+<th>รายการ</th>
+<th>ค่าใช้จ่าย</th>
+<th>ยอดเงิน</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+
+<script>
+const url = "https://opensheet.elk.sh/1Bh2Bve7j-0mHOZch8BqR25zzDyiDNbiESpswe4lYLZc/0";
+
+let data = [];
+let barChart, pieChart, profitChart;
+
+const month = document.getElementById("month");
+const farmer = document.getElementById("farmer");
+const tableBody = document.getElementById("tableBody");
+
+fetch(url)
+.then(r=>r.json())
+.then(d=>{
+  console.log("DATA:", d); // ✅ debug
+  data = d;
+  init();
+})
+.catch(err=>{
+  document.body.innerHTML = "❌ โหลดข้อมูลไม่ได้";
+  console.error(err);
+});
+
+function getMonth(d){
+  if(!d) return "";
+  let p = d.trim().split("/");
+  if(p.length < 3) return "";
+  return p[1] + "/" + p[2];
+}
+
+function init(){
+
+  // ✅ สร้างเดือน (กันค่าว่าง)
+  const months = [...new Set(
+    data.map(d => getMonth(d["วันเวลา"] || ""))
+  )].filter(m=>m!="");
+
+  const farmers = [...new Set(
+    data.map(d => (d["ชื่อเกษตรกร"] || "ไม่ระบุ").trim())
+  )];
+
+  // dropdown เดือน
+  month.innerHTML = "";
+  months.forEach(m=>{
+    month.innerHTML += `<option value="${m}">${m}</option>`;
+  });
+
+  // ✅ auto select เดือนแรก (แก้ปัญหาหลัก)
+  if(months.length > 0){
+    month.value = months[0];
+  }
+
+  // dropdown เกษตรกร
+  farmer.innerHTML = `<option value="">ทั้งหมด</option>`;
+  farmers.forEach(f=>{
+    farmer.innerHTML += `<option value="${f}">${f}</option>`;
+  });
+
+  month.onchange = update;
+  farmer.onchange = update;
+
+  update();
+}
+
+function update(){
+
+  let m = month.value;
+  let f = farmer.value;
+
+  // ✅ fallback: ถ้าไม่มีเดือน → แสดงทั้งหมด
+  let filtered = data.filter(d=>{
+    let date = (d["วันเวลา"]||"").trim();
+    let farmerName = (d["ชื่อเกษตรกร"]||"ไม่ระบุ").trim();
+
+    let matchMonth = m ? (getMonth(date) === m) : true;
+    let matchFarmer = f ? (farmerName === f) : true;
+
+    return matchMonth && matchFarmer;
+  });
+
+  let cost=0, pay=0;
+  let map={}, dailyCost={}, dailyPay={};
+
+  filtered.forEach(d=>{
+    let date = (d["วันเวลา"]||"").trim();
+    let farmerName = (d["ชื่อเกษตรกร"]||"ไม่ระบุ").trim();
+
+    // ✅ parse ตัวเลขปลอดภัย
+    let c = Number((d["ค่าใช้จ่าย"]||"0").replace(/,/g,"")) || 0;
+    let p = Number((d["ยอดเงินที่ต้องจ่าย"]||"0").replace(/,/g,"")) || 0;
+
+    cost += c;
+    pay += p;
+
+    if(!map[date]) map[date]={};
+    if(!map[date][farmerName]) map[date][farmerName]=0;
+    map[date][farmerName]+=p;
+
+    if(!dailyCost[date]) dailyCost[date]=0;
+    if(!dailyPay[date]) dailyPay[date]=0;
+
+    dailyCost[date]+=c;
+    dailyPay[date]+=p;
+  });
+
+  let profit = pay - cost;
+
+  document.getElementById("cost").innerText = cost.toLocaleString();
+  document.getElementById("pay").innerText = pay.toLocaleString();
+
+  let el = document.getElementById("profit");
+  el.innerText = profit.toLocaleString();
+  el.style.color = profit >= 0 ? "green" : "red";
+
+  drawChart(map, dailyCost, dailyPay);
+  drawTable(filtered);
+}
+
+function drawChart(map, dailyCost, dailyPay){
+
+  if(barChart) barChart.destroy();
+  if(pieChart) pieChart.destroy();
+  if(profitChart) profitChart.destroy();
+
+  let labels = Object.keys(map);
+
+  labels.sort((a,b)=>{
+    let pa=a.split("/"), pb=b.split("/");
+    return new Date(pa[2],pa[1]-1,pa[0]) - new Date(pb[2],pb[1]-1,pb[0]);
+  });
+
+  let farmers = [...new Set(
+    Object.values(map).flatMap(o=>Object.keys(o))
+  )];
+
+  const colors = ["#60a5fa","#34d399","#f87171","#fbbf24","#a78bfa"];
+
+  // 📊 BAR
+  let datasets = farmers.map((f,i)=>{
+    return {
+      label: f,
+      data: labels.map(d => map[d][f] || 0),
+      backgroundColor: colors[i % colors.length]
+    }
+  });
+
+  barChart = new Chart(document.getElementById("bar"),{
+    type:'bar',
+    data:{ labels, datasets },
+    options:{
+      plugins:{ title:{display:true,text:'รายได้รายวัน'} },
+      scales:{ x:{stacked:true}, y:{stacked:true} }
+    }
+  });
+
+  // 📈 PROFIT
+  let profitData = labels.map(d => (dailyPay[d]||0)-(dailyCost[d]||0));
+
+  profitChart = new Chart(document.getElementById("profitChart"),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{ label:"กำไร", data:profitData }]
+    }
+  });
+
+  // 🥧 PIE
+  let totalPay = Object.values(dailyPay).reduce((a,b)=>a+b,0);
+  let totalCost = Object.values(dailyCost).reduce((a,b)=>a+b,0);
+
+  pieChart = new Chart(document.getElementById("pie"),{
+    type:'doughnut',
+    data:{
+      labels:["รายรับ","ค่าใช้จ่าย"],
+      datasets:[{
+        data:[totalPay,totalCost],
+        backgroundColor:["#34d399","#f87171"]
+      }]
+    }
+  });
+}
+
+function drawTable(rows){
+  tableBody.innerHTML="";
+  rows.forEach(r=>{
+    tableBody.innerHTML+=`
+    <tr>
+      <td>${r["วันเวลา"]||""}</td>
+      <td>${r["ชื่อเกษตรกร"]||""}</td>
+      <td>${r["รายการ"]||""}</td>
+      <td>${r["ค่าใช้จ่าย"]||0}</td>
+      <td>${r["ยอดเงินที่ต้องจ่าย"]||0}</td>
+    </tr>`;
+  });
+}
+</script>
+
+</body>
+</html>
