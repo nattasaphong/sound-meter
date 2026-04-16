@@ -1,44 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<meta charset="UTF-8">
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body {
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(10, 50px);
+  gap: 5px;
+  justify-content: center;
+  margin: 20px;
+}
+
+.cell {
+  width: 50px;
+  height: 50px;
+  border: 2px solid black;
+  cursor: pointer;
+}
+
+.selected {
+  background-color: orange;
+}
+
+</style>
 </head>
+
 <body>
 
-<h2>ระบบคลังสินค้า</h2>
+<h2>เลือกตำแหน่ง</h2>
 
-<select id="zone">
-  <option>A</option>
-  <option>B</option>
-</select>
+<div class="grid" id="grid"></div>
 
-<select id="shelf">
-  <option>1</option>
-  <option>2</option>
-</select>
+<h3 id="selectedText">ยังไม่ได้เลือก</h3>
 
-<div id="reader" style="width:300px;"></div>
+<div id="reader" style="width:300px; margin:auto;"></div>
 
 <script>
+let selectedCell = null;
+
+// 🔲 สร้าง grid
+const grid = document.getElementById("grid");
+
+for (let i = 1; i <= 30; i++) {
+  const div = document.createElement("div");
+  div.className = "cell";
+  div.innerText = i;
+
+  div.onclick = () => {
+    document.querySelectorAll(".cell").forEach(c => c.classList.remove("selected"));
+    div.classList.add("selected");
+    selectedCell = i;
+    document.getElementById("selectedText").innerText = "เลือกช่อง: " + i;
+  };
+
+  grid.appendChild(div);
+}
+
+// 📷 สแกน
 function onScanSuccess(decodedText) {
-  const zone = document.getElementById("zone").value;
-  const shelf = document.getElementById("shelf").value;
+
+  if (!selectedCell) {
+    alert("กรุณาเลือกช่องก่อน");
+    return;
+  }
 
   fetch("YOUR_GAS_URL", {
     method: "POST",
     body: JSON.stringify({
       code: decodedText,
-      zone: zone,
-      shelf: shelf
+      location: selectedCell
     })
   });
 
-  alert("บันทึกแล้ว: " + decodedText);
+  alert("บันทึกแล้ว ช่อง: " + selectedCell + " | code: " + decodedText);
 }
 
 let scanner = new Html5QrcodeScanner("reader", { fps: 10 });
 scanner.render(onScanSuccess);
+
 </script>
 
 </body>
