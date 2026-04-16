@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+
+<body>
+
+<script>
+if (localStorage.getItem("role") !== "internal") {
+  alert("กรุณาเข้าสู่ระบบ");
+  window.location.href = "login.html";
+}
+</script>
+
+<h2>หน้าพนักงาน</h2>
+
+<a href="scan.html">📷 ไปหน้าสแกน</a><br><br>
+<button onclick="logout()">Logout</button>
+
+<script src="app.js"></script>
+
+</body>
+</html>
