@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 60px);
+  gap: 5px;
+}
+.cell {
+  border: 1px solid black;
+  height: 60px;
+  cursor: pointer;
+}
+.selected {
+  background: orange;
+}
+</style>
+
+</head>
+
+<body>
+
+<script>
+if (localStorage.getItem("role") !== "internal") {
+  alert("กรุณาเข้าสู่ระบบ");
+  window.location.href = "login.html";
+}
+</script>
+
+<h3>เลือกช่อง</h3>
+<div class="grid" id="grid"></div>
+
+<h3 id="selected">ยังไม่ได้เลือก</h3>
+
+<div id="reader" style="width:300px;"></div>
+
+<script>
+let selected = null;
+
+// สร้าง grid
+for (let i = 1; i <= 24; i++) {
+  let div = document.createElement("div");
+  div.className = "cell";
+  div.innerText = i;
+
+  div.onclick = () => {
+    document.querySelectorAll(".cell").forEach(c => c.classList.remove("selected"));
+    div.classList.add("selected");
+    selected = i;
+    document.getElementById("selected").innerText = "ช่อง: " + i;
+  };
+
+  document.getElementById("grid").appendChild(div);
+}
+
+// สแกน
+function onScanSuccess(code) {
+  if (!selected) {
+    alert("เลือกช่องก่อน");
+    return;
+  }
+
+  fetch("YOUR_GAS_URL", {
+    method: "POST",
+    body: JSON.stringify({
+      action: "scan",
+      code: code,
+      location: selected,
+      role: localStorage.getItem("role")
+    })
+  });
+
+  alert("บันทึกแล้ว");
+}
+
+new Html5QrcodeScanner("reader", { fps: 10 }).render(onScanSuccess);
+</script>
+
+</body>
+</html>
